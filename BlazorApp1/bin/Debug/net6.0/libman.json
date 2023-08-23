@@ -1,0 +1,22 @@
+{
+  "version": "1.0",
+  "defaultProvider": "cdnjs",
+    "libraries": [
+        {
+            "provider": "unpkg",
+            "library": "bootstrap@5.3.1",
+            "destination": "wwwroot/lib/bootstrap/"
+        },
+        {
+            "provider": "unpkg",
+            "library": "popper@1.0.1",
+            "destination": "wwwroot/lib/popper/"
+        }
+    ,
+{
+  "provider": "cdnjs",
+  "library": "Chart.js@4.3.3",
+  "destination": "wwwroot/lib/Chart.js/"
+}
+]
+}

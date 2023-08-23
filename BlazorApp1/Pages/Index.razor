@@ -1,0 +1,135 @@
+﻿@page "/"
+@using BlazorBootstrap;
+@using BlazorBootstrap.Utilities;
+@using Examples;
+@using BlazorBootstrap.Extensions
+@using Color = System.Drawing.Color
+
+<PageTitle>Index</PageTitle>
+<link href="/lib/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+<h1>Async Test</h1>
+
+<div class="p-2">
+	Time: @message
+</div>
+<div class="p-2">
+	<button class="btn btn-primary" disabled=@go @onclick=ButtonClick>@buttonMessage</button>
+</div>
+<div class="p-2">
+	<button class="btn btn-secondary" @onclick=UpdateExample>Get Time</button>
+</div>
+<LineChart @ref="lineChart" Width="800" Class="mb-4" />
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/lib/bootstrap/dist/js/bootstrap.min.js"></script>
+<script src="/lib/Chart.js/chart.umd.js"></script>
+<script src="_content/Blazor.Bootstrap/blazor.bootstrap.js"></script>
+
+
+
+@code {
+	private bool go = false;
+
+	private string disabled = "";
+
+	private string buttonMessage => go ? "Running" : "Write mock Data";
+
+
+	private string message = DateTime.Now.ToLongTimeString();
+	List<InfluxDB.Client.Core.Flux.Domain.FluxTable> data = new List<InfluxDB.Client.Core.Flux.Domain.FluxTable>();
+
+	private async Task UpdateExample()
+	{
+		try
+		{
+			QueriesWritesExample qwe = new QueriesWritesExample();
+			data = await qwe.Read();
+			UpdateGraph();
+		}
+		catch (Exception e)
+		{
+			Console.WriteLine(e.Message);
+		}
+	}
+
+	private async Task ButtonClick()
+	{
+		go = true;
+		try
+		{
+			QueriesWritesExample qwe = new QueriesWritesExample();
+			await qwe.Write();
+		}
+		catch (Exception e)
+		{
+			Console.WriteLine(e.Message);
+		}
+		go = false;
+	}
+
+	// Line chart
+	private LineChart lineChart = default!;
+	private LineChartOptions lineChartOptions = default!;
+	private ChartData chartData = default!;
+	private async void UpdateGraph()
+	{
+		List<string> timeLabels = new List<string>();
+		List<double> timeData = new List<double>();
+		data.ForEach(fluxTable =>
+		{
+			var fluxRecords = fluxTable.Records;
+			fluxRecords.ForEach(fluxRecord =>
+				{
+					timeLabels.Add(fluxRecord.GetTime().ToString());
+					timeData.Add(Convert.ToDouble(fluxRecord.GetValue()));
+				});
+		});
+
+		var colors = ColorBuilder.CategoricalTwelveColors;
+		var labels = timeLabels;
+		var datasets = new List<IChartDataset>();
+		var dataset1 = new LineChartDataset()
+			{
+				Label = "east",
+				Data = timeData,
+				BackgroundColor = new List<string> { colors[0] },
+				BorderColor = new List<string> { colors[0] },
+				BorderWidth = new List<double> { 2 },
+				HoverBorderWidth = new List<double> { 4 },
+				PointBackgroundColor = new List<string> { colors[0] },
+				PointRadius = new List<int> { 0 }, // hide points
+				PointHoverRadius = new List<int> { 4 },
+			};
+		datasets.Add(dataset1);
+
+		chartData = new ChartData
+			{
+				Labels = labels,
+				Datasets = datasets
+			};
+		lineChartOptions = new();
+		lineChartOptions.Responsive = true;
+		lineChartOptions.Interaction = new Interaction { Mode = InteractionMode.Index };
+		lineChartOptions.Scales.X.Title.Text = "Time";
+		lineChartOptions.Scales.X.Title.Display = false;
+		lineChartOptions.Scales.X.Max = 10;
+		lineChartOptions.Scales.Y.Title.Text = "Temp";
+		lineChartOptions.Scales.Y.Title.Display = true;
+		lineChartOptions.Plugins.Title.Text = "Location";
+		lineChartOptions.Plugins.Title.Display = true;
+
+		await lineChart.InitializeAsync(chartData, lineChartOptions);
+	}
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender && chartData != null && lineChartOptions!=null)
+		{
+			await lineChart.InitializeAsync(chartData, lineChartOptions);
+		}
+		await base.OnAfterRenderAsync(firstRender);
+	}
+}
